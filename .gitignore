@@ -1,0 +1,24 @@
+# Cấu hình riêng và mật khẩu
+.env
+.env.*
+!.env.example
+
+# Sao lưu cơ sở dữ liệu có tài khoản thật
+*.sql
+*.sql.gz
+*.sql.zip
+
+# Log và file tạm
+*.log
+*.tmp
+
+# Cấu hình trình soạn thảo
+.vscode/
+.idea/
+
+# File hệ điều hành
+Thumbs.db
+.DS_Store
+
+# Script tạo quản trị viên dùng một lần
+/admin/setup.php
