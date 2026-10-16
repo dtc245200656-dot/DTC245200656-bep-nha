@@ -1,11 +1,11 @@
 <?php
 header('Content-Type: text/html; charset=utf-8');
-require __DIR__ . '/db.php';
-
-function e(string $value): string
-{
-    return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-}
+require __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/community-lib.php';
+ensureCommunity($pdo);
+$detailMember = currentMember();
+require_once __DIR__ . '/includes/guest-options.php';
+ensureGuestRecipeOptions($pdo);
 
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 
@@ -23,7 +23,7 @@ $stmt = $pdo->prepare(
 $stmt->execute([$id]);
 $recipe = $stmt->fetch();
 
-if (!$recipe) {
+if (!$recipe || ($recipe['status']!=='approved' && (!$detailMember || ($detailMember['role']!=='admin' && (int)$recipe['owner_id']!==(int)$detailMember['id'])))) {
     http_response_code(404);
     exit('Không tìm thấy công thức. <a href="index.php">Về trang chủ</a>');
 }
@@ -194,7 +194,7 @@ $image = $recipe['image_path'];
     <header>
         <div class="container header-content">
             <a class="brand" href="index.php">🍴 Bếp Nhà</a>
-            <a href="index.php">← Về trang chủ</a>
+            <div><a href="index.php">← Về trang chủ</a> · <a href="member/index.php">Tài khoản của tôi</a></div>
         </div>
     </header>
 
@@ -214,7 +214,7 @@ $image = $recipe['image_path'];
                         <?= e($recipe['category_name']) ?>
                     </span>
 
-                    <h1><?= e($recipe['title']) ?></h1>
+                    <h1><?= e($recipe['title']) ?></h1><?php if($recipe['status']!=='approved'): ?><p style="padding:12px;background:#fff0d9;border-radius:8px">Trạng thái: <?= e(recipeStatusLabels()[$recipe['status']]) ?>. Chỉ tác giả và quản trị viên được xem. <?= e($recipe['review_note']) ?></p><?php endif; ?>
 
                     <p class="description">
                         <?= e($recipe['description']) ?>
@@ -225,7 +225,7 @@ $image = $recipe['image_path'];
                             ⏱ <?= (int) $recipe['cooking_minutes'] ?> phút
                         </span>
                         <span>
-                            🍽 <?= (int) $recipe['servings'] ?> người ăn
+                            🍽 <?= (int) $recipe['servings'] ?> người ăn</span><span>Độ khó: <?= e(difficultyLabels()[$recipe['difficulty'] ?? ''] ?? 'Chưa phân loại') ?>
                         </span>
                     </div>
                 </div>
@@ -271,6 +271,7 @@ $image = $recipe['image_path'];
                 </section>
             </div>
         </article>
+        <?php require __DIR__ . '/includes/community-detail.php'; ?>
     </main>
 
     <footer>

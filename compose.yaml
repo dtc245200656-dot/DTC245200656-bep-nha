@@ -38,6 +38,11 @@ services:
       - ./recipe.php:/var/www/html/recipe/recipe.php:ro
       - ./db.php:/var/www/html/recipe/db.php:ro
       - ./admin:/var/www/html/recipe/admin:ro
+      - ./includes:/var/www/html/recipe/includes:ro
+      - ./member:/var/www/html/recipe/member:ro
+      - ./login.php:/var/www/html/recipe/login.php:ro
+      - ./register.php:/var/www/html/recipe/register.php:ro
+      - ./logout.php:/var/www/html/recipe/logout.php:ro
       - ./images:/var/www/html/recipe/images:ro
     depends_on:
       db:

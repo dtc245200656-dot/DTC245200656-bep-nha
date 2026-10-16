@@ -1,9 +1,10 @@
 <?php
 require __DIR__ . '/auth.php';
 requireAdmin();
+require_once __DIR__ . '/../includes/community-lib.php';
 
 $recipes = $pdo->query(
-    'SELECT r.id, r.title, c.name AS category_name
+    'SELECT r.id, r.title, r.status, c.name AS category_name
      FROM recipes r
      JOIN categories c ON c.id = r.category_id
      ORDER BY r.id DESC'
@@ -122,7 +123,7 @@ $recipes = $pdo->query(
     </header>
 
     <main>
-        <h1>Quản lý công thức</h1>
+        <h1>Quản lý công thức</h1><p><a href="review.php">Duyệt công thức</a> · <a href="manage.php?tab=categories">Danh mục</a> · <a href="manage.php?tab=users">Tài khoản</a> · <a href="manage.php?tab=comments">Bình luận</a></p>
         <p>Hiện có <?= count($recipes) ?> công thức.</p>
         <p>
             <a href="create.php" class="add-button">+ Thêm công thức</a>
@@ -138,7 +139,7 @@ $recipes = $pdo->query(
                                 <th scope="col">ID</th>
                                 <th scope="col">Tên món</th>
                                 <th scope="col">Danh mục</th>
-                                <th scope="col">Thao tác</th>
+                                <th scope="col">Trạng thái</th><th scope="col">Thao tác</th>
                             </tr>
                         </thead>
 
@@ -147,7 +148,7 @@ $recipes = $pdo->query(
                                 <tr>
                                     <td><?= (int) $recipe['id'] ?></td>
                                     <td><?= e($recipe['title']) ?></td>
-                                    <td><?= e($recipe['category_name']) ?></td>
+                                    <td><?= e($recipe['category_name']) ?></td><td><?= e(recipeStatusLabels()[$recipe['status']]) ?></td>
                                     <td>
                         <a href="../recipe.php?id=<?= (int) $recipe['id'] ?>">
                             Xem công thức
