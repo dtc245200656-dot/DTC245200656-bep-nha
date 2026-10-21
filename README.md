@@ -91,5 +91,108 @@ Không dùng `docker compose down -v` nếu muốn giữ database.
 - Hoàn thành website và quản trị công thức.
 - Hoàn thành Docker Compose: PHP, MySQL, phpMyAdmin.
 - Hoàn thành Nginx reverse proxy và security headers cơ bản.
-- Chưa hoàn thành Prometheus, Grafana, Loki, Promtail
-  và các biện pháp hardening còn lại.
+- Đã tích hợp Prometheus, Grafana, Loki và Promtail.
+- Đã áp dụng non-root cho app, hạn chế quyền và tách mạng.
+
+## Triển khai đầy đủ trên Ubuntu
+
+Tạo `.env` từ `.env.example` nếu chưa có, rồi điền mật khẩu riêng.
+Không ghi đè `.env` đang sử dụng và không đưa file này lên GitHub.
+
+Kiểm tra cấu hình:
+
+```bash
+docker compose -f compose.yaml -f compose.monitoring.yaml config -q
+```
+
+Khởi động:
+
+```bash
+docker compose -f compose.yaml -f compose.monitoring.yaml up -d --build
+```
+
+Xem trạng thái:
+
+```bash
+docker compose -f compose.yaml -f compose.monitoring.yaml ps
+```
+
+### Địa chỉ truy cập trong Ubuntu
+
+- Website: http://localhost:8082/recipe/
+- phpMyAdmin: http://localhost:8081
+- Prometheus: http://localhost:9091/targets
+- Grafana: http://localhost:3001
+
+Grafana dùng tài khoản và mật khẩu khai báo trong `.env`.
+Dashboard Bếp Nhà được nạp tự động từ thư mục
+`monitoring/grafana/dashboards`.
+
+### Giám sát và log
+
+- Prometheus thu thập số liệu Nginx, MySQL và container.
+- Grafana hiển thị trạng thái, lưu lượng, CPU và RAM.
+- Promtail chuyển log container sang Loki.
+
+Ví dụ LogQL:
+
+```logql
+{moi_truong="bep-nha", service="nginx"}
+```
+
+```logql
+{moi_truong="bep-nha", service="nginx"} |= " 200 "
+```
+
+```logql
+sum(count_over_time({moi_truong="bep-nha", service="nginx"}[5m]))
+```
+
+### Hardening đã áp dụng
+
+- PHP/Apache chạy bằng user www-data.
+- App bỏ toàn bộ capabilities và bật no-new-privileges.
+- Mạng frontend tách khỏi backend; backend là mạng internal.
+- Database không công bố cổng ra máy chủ.
+- Mã nguồn được mount chỉ đọc.
+- Nginx có security headers cơ bản.
+
+### Dừng hệ thống và giữ dữ liệu
+
+```bash
+docker compose -f compose.yaml -f compose.monitoring.yaml stop
+```
+
+Không dùng `down -v` khi cần giữ dữ liệu.
+
+### Tạo tài khoản MySQL exporter khi cài mới
+
+Khởi động database:
+
+```bash
+docker compose -f compose.yaml -f compose.monitoring.yaml up -d db
+```
+
+Đăng nhập bằng MYSQL_ROOT_PASSWORD trong `.env`:
+
+```bash
+docker compose -f compose.yaml -f compose.monitoring.yaml exec db mysql -u root -p
+```
+
+Trong MySQL, chạy các câu sau. Thay REPLACE_WITH_EXPORTER_PASSWORD
+bằng đúng MYSQL_EXPORTER_PASSWORD đã đặt trong `.env`:
+
+```sql
+CREATE USER 'bepnha_exporter'@'%'
+IDENTIFIED BY 'REPLACE_WITH_EXPORTER_PASSWORD'
+WITH MAX_USER_CONNECTIONS 3;
+
+GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.*
+TO 'bepnha_exporter'@'%';
+
+exit;
+```
+
+Chỉ tạo tài khoản một lần trên database mới.
+Đây là tài khoản giám sát, không phải tài khoản đăng nhập website.
+Sau đó khởi động toàn bộ hệ thống bằng hai file Compose.

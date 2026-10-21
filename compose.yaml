@@ -4,6 +4,8 @@ services:
   db:
     image: mysql:8.4
     restart: unless-stopped
+    networks:
+      - backend
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:?}
       MYSQL_USER: ${MYSQL_USER:?}
@@ -27,6 +29,13 @@ services:
     build:
       context: ./docker
     restart: unless-stopped
+    networks:
+      - frontend
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     environment:
       DB_HOST: db
       DB_PORT: "3306"
@@ -51,8 +60,10 @@ services:
   nginx:
     image: nginx:stable-alpine
     restart: unless-stopped
+    networks:
+      - frontend
     ports:
-      - "127.0.0.1:8080:80"
+      - "127.0.0.1:8082:80"
     volumes:
       - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
@@ -61,6 +72,9 @@ services:
   phpmyadmin:
     image: phpmyadmin:5-apache
     restart: unless-stopped
+    networks:
+      - frontend
+      - backend
     ports:
       - "127.0.0.1:8081:80"
     environment:
@@ -70,6 +84,44 @@ services:
     depends_on:
       db:
         condition: service_healthy
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.5.1
+    restart: unless-stopped
+    command:
+      - --nginx.scrape-uri=http://nginx:8083/stub_status
+    depends_on:
+      - nginx
+    networks:
+      frontend:
+      monitoring:
+        aliases:
+          - bepnha-nginx-exporter
+  mysql-exporter:
+    image: prom/mysqld-exporter:v0.17.2
+    restart: unless-stopped
+    environment:
+      MYSQLD_EXPORTER_PASSWORD: ${MYSQL_EXPORTER_PASSWORD:?}
+    command:
+      - --mysqld.address=db:3306
+      - --mysqld.username=bepnha_exporter
+      - --config.my-cnf=/dev/null
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      backend:
+      monitoring:
+        aliases:
+          - bepnha-mysql-exporter
 
 volumes:
   mysql_data:
+
+
+networks:
+  frontend:
+  backend:
+    internal: true
+  monitoring:
+    external: true
+    name: monitor_net_dtc245200656

@@ -22,3 +22,7 @@ Thumbs.db
 
 # Script tạo quản trị viên dùng một lần
 /admin/setup.php
+
+# Ban sao luu cau hinh cuc bo
+*.before-hardening
+compose.before-hardening.yaml

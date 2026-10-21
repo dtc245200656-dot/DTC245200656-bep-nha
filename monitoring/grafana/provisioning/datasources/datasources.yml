@@ -1,0 +1,30 @@
+# Nguon du lieu nap tu FILE, khong bam tay tren giao dien.
+# Nho vay dung lai o may khac van ra dung ket qua -- yeu cau cua Moc 7.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prom-bai7          # dashboard tham chieu toi uid nay
+    access: proxy           # Grafana goi Prometheus tu PHIA MAY CHU,
+                            # khong bat trinh duyet cua nguoi dung goi.
+                            # Nho vay Prometheus khong can pho ra ngoai.
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+
+  # ===== MOI O BAI 8 =====
+  # Loki cung nap TU FILE, khong them bang tay tren giao dien. Them bang tay
+  # thi nguon du lieu song trong CSDL noi bo cua Grafana: xoa volume la mat,
+  # va dung lai o may khac phai bam lai tu dau. Nap tu file thi no la mot
+  # dong trong Git -- dung lai o dau cung ra ket qua giong het.
+  - name: Loki
+    type: loki
+    uid: loki-bai8
+    access: proxy
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      # Cho phep nhay tu mot dong log sang bieu do chi so cung khung gio.
+      maxLines: 1000
+      derivedFields: []

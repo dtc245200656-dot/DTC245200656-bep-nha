@@ -1,0 +1,74 @@
+# =====================================================================
+# Bai lab 8 -- Cau hinh Loki
+#
+# LUU Y VE PHIEN BAN. Nhieu tai lieu tren mang con huong dan dung
+#     store: boltdb-shipper
+#     schema: v12
+# Hai gia tri nay dung cho Loki 2.x. Tu Loki 3.0 (2024), kho luu tru mac
+# dinh la "tsdb" va luoc do la "v13"; boltdb-shipper voi v12 van chay
+# duoc nhung bi coi la loi thoi, cham hon nhieu khi truy van, va se bi bo
+# han o ban sau. Bai lab dung tsdb + v13.
+#
+# Kiem cu phap truoc khi khoi dong lai:
+#   docker compose exec -T loki /usr/bin/loki \
+#     -config.file=/etc/loki/loki-config.yml -verify-config
+# =====================================================================
+
+# Khong bat xac thuc nhieu nguoi thue. Loki van doi header X-Scope-OrgID
+# khi bat; tat di thi moi log nam chung mot "to chuc" ten la fake.
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  # Bot log noi bo cua chinh Loki xuong muc warn. De mac dinh "info" thi
+  # Loki tu sinh vai chuc dong moi phut, Promtail lai day nguoc ve Loki,
+  # va log that cua WordPress bi chim trong do.
+  log_level: warn
+
+common:
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  # Mot ban sao duy nhat. Day la he thong mot may; dat lon hon 1 thi Loki
+  # cho du "ban sao" khong bao gio den va khong ghi duoc gi ca.
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: "2024-01-01"
+      store: tsdb                 # Loki 2.x dung boltdb-shipper
+      object_store: filesystem
+      schema: v13                 # Loki 2.x dung v12
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  # Cho phep sieu du lieu co cau truc -- bat buoc voi luoc do v13.
+  allow_structured_metadata: true
+  # Giu log 7 ngay. May ao hoc tap co 20 GB dia; khong dat han thi Loki
+  # giu vinh vien va o dia day dan ma khong ro ly do -- dung loi da gap
+  # o Prometheus ban chua dat retention.
+  retention_period: 168h
+  # Chan mot container phat dien ghi hang tram MB log lam day dia.
+  ingestion_rate_mb: 8
+  ingestion_burst_size_mb: 16
+
+compactor:
+  working_directory: /loki/compactor
+  # Phai bat delete_request_store thi retention_period o tren moi thuc su
+  # xoa du lieu cu. Thieu dong nay, Loki nhan cau hinh nhung khong bao
+  # gio don -- mot cai bay im lang.
+  retention_enabled: true
+  delete_request_store: filesystem
+
+# Tat viec goi ve may chu cua Grafana Labs de bao cao su dung. May ao
+# trong phong lab thuong khong ra duoc Internet, va moi lan goi that bai
+# lai sinh mot dong log loi.
+analytics:
+  reporting_enabled: false

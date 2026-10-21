@@ -1,0 +1,71 @@
+# =====================================================================
+# Bai lab 8 -- Cau hinh Promtail
+#
+# Promtail KHONG doc file log tren dia. No hoi Docker "dang co container
+# nao chay", roi doc thang dong ra cua tung container -- giong het lenh
+# "docker logs". Nho vay them mot container moi la co log ngay, khong
+# phai sua cau hinh.
+# =====================================================================
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: warn
+
+positions:
+  # Ghi nho da doc den dau. Mat file nay thi Promtail doc lai tu dau va
+  # Loki nhan mot dong hai lan. File nam trong volume nen song sot qua
+  # cac lan khoi dong lai.
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 15s
+
+
+    relabel_configs:
+      # Ten container Docker luon bat dau bang dau "/": "/wordpress".
+      # Cat dau gach cheo di cho truy van LogQL de viet.
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_project']
+        regex: '(bai7-lab|bep-nha)'
+        action: keep
+
+      # Ten DICH VU trong docker-compose (khong nhat thiet trung ten
+      # container). Giu ca hai vi o he thong that, mot dich vu co the
+      # chay nhieu ban sao voi ten container khac nhau.
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'service'
+
+      # Nhan tinh de phan biet voi cac nguon log khac sau nay.
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_project']
+        target_label: 'moi_truong'
+
+    pipeline_stages:
+      # Doc muc nghiem trong ngay tu noi dung dong log roi bien thanh
+      # NHAN. Nho vay truy van {container="wordpress", muc="error"} chay
+      # rat nhanh -- Loki loc bang chi muc nhan chu khong phai doc het
+      # noi dung.
+      #
+      # CAN THAN: chi duoc bien thanh nhan nhung gia tri CO IT LOAI. Bien
+      # mot thu nhieu gia tri (dia chi IP, ma don hang, dau thoi gian)
+      # thanh nhan se lam no chuoi chi muc -- moi to hop nhan la mot
+      # chuoi rieng, va Loki sap duoi hang chuc nghin chuoi. Day la sai
+      # lam pho bien nhat khi moi dung Loki.
+      - regex:
+          expression: '(?i)(?P<muc>error|warn|fatal|critical)'
+      # Dua ve chu thuong. Khong co buoc nay thi "ERROR", "Error" va
+      # "error" thanh BA gia tri nhan khac nhau, va truy van muc="error"
+      # bo sot hai phan ba so dong.
+      - template:
+          source: muc
+          template: '{{ ToLower .Value }}'
+      - labels:
+          muc:
